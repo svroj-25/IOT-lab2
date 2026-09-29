@@ -2,14 +2,25 @@
 Import("env")
 import os, shutil
 
-OUT = os.path.join(".pio", "build", "wokwi")
+project_dir = env.subst("$PROJECT_DIR")
+OUT = os.path.join(project_dir, ".pio", "build", "wokwi")
 os.makedirs(OUT, exist_ok=True)
 
-def _copy_to_wokwi(target, source, env):  # callback signature: (target, source, env)
-    src = str(target[0])                  # path to the built file
-    shutil.copy2(src, os.path.join(OUT, os.path.basename(src)))
-    print(f"[wokwi] copied {os.path.basename(src)}")
+def copy_files(*args, **kwargs):
+    build_dir = env.subst("$BUILD_DIR")
+    progname = env.subst("$PROGNAME")
+    for ext in [".bin", ".elf"]:
+        src = os.path.join(build_dir, f"{progname}{ext}")
+        if os.path.isfile(src):
+            dst = os.path.join(OUT, f"firmware{ext}")
+            shutil.copyfile(src, dst)
+            print(f"[wokwi] successfully copied {src} -> {dst}")
 
-# run after build finishes producing these files
-env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", _copy_to_wokwi)
-env.AddPostAction("$BUILD_DIR/${PROGNAME}.elf", _copy_to_wokwi)
+# Run when binaries are freshly built
+env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", copy_files)
+env.AddPostAction("$BUILD_DIR/${PROGNAME}.elf", copy_files)
+
+# Also copy immediately if binaries already exist
+copy_files()
+
+
